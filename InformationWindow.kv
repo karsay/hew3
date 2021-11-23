@@ -1,0 +1,22 @@
+<InformationWindow@BoxLayout>:
+    BoxLayout:
+        orientation: 'vertical'
+        MainLabel:
+            text:app.root.mainWindow.address
+        MainLabel:
+            text:app.root.mainWindow.macaddress
+        MainLabel:
+            text: app.root.mainWindow.hostName
+        MainLabel:
+            text: app.root.mainWindow.OS
+
+    MainLabel:
+        text: app.root.mainWindow.service
+
+# メインウィンドウのラベル
+<MainLabel@Label>:
+    font_size: 30
+    text_size: self.size
+    halign: 'left'
+    valign: 'top'
+    height: self.texture_size[1]
