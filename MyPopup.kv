@@ -1,0 +1,21 @@
+<MyPopup>:
+    title: '確認'
+    size_hint: None, None
+    size: 1000, 600
+    FloatLayout:
+        Label:
+            size_hint: 0.8, 0.6
+            pos_hint: {'x': 0.1, 'y':0.4}
+            text: root.message
+
+        Button:
+            size_hint: 0.4, 0.3
+            pos_hint: {'x':0.1, 'y':0.05}
+            text: 'Yes'
+            on_release: root.dispatch('on_yes')
+
+        Button:
+            size_hint: 0.4, 0.3
+            pos_hint: {'x':0.5, 'y':0.05}
+            text: 'No'
+            on_release: root.dispatch('on_no')

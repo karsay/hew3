@@ -3,12 +3,14 @@ from os import stat_result
 from typing import Text
 from kivy.core.window import Window
 # Window.fullscreen = 'auto'
-Window.size = (1680, 960)
+Window.size = (1440, 900)
+# 2880 × 1800
 
 from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.uix.button import Button
 from kivy.uix.label import Label
+from kivy.uix.popup import Popup
 from kivy.uix.progressbar import ProgressBar
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.accordion import Accordion, AccordionItem
@@ -40,22 +42,44 @@ Builder.load_file('InformationWindow.kv')
 Builder.load_file('NetworkWindow.kv')
 Builder.load_file('VulnerabilityWindow.kv')
 Builder.load_file('WebWindow.kv')
+Builder.load_file('MyPopup.kv')
 
 class MainWindow(EventDispatcher):
+    id = NumericProperty()
     address = StringProperty()
     macaddress = StringProperty()
     hostName = StringProperty()
     OS = StringProperty()
     service = StringProperty()
 
+# ポップアップクラス
+class MyPopup(Popup):
+    __events__ = ('on_yes', 'on_no')
+    message = StringProperty()
+    def __init__(self, **kwargs) -> None:
+        super(MyPopup, self).__init__(**kwargs)
+        self.auto_dismiss = False
+
+    def on_yes(self):
+        pass
+
+    def on_no(self):
+        pass
+
 class Pentest(Widget):
 
     # 共有データクラス
     mainWindow = MainWindow()
 
+    # ポップアップクラス
+    popup = MyPopup()
+
     cmdText = StringProperty()
+    cmdOutput = StringProperty()
 
     loadingFlag = False
+
+    popUpMessage = StringProperty()
 
     nodes = [
         # {
@@ -103,7 +127,7 @@ class Pentest(Widget):
             "スキャン",
             "パケット",
             "コントロール",
-            "エクスプロイト",
+            "ペネトレイト",
             "その他",
         ]
         menuImages = [
@@ -114,7 +138,7 @@ class Pentest(Widget):
             "images/menu/menu1.png",
         ]
         menuItems = [
-            ["ネットワークスキャン","簡易スキャン","詳細スキャン","WiFiスキャン","脆弱性スキャン","WordPressスキャン","SQLスキャン"],
+            ["詳細スキャン","高速スキャン","OSスキャン","ネットワークスキャン","脆弱性スキャン","WordPressスキャン","SQLスキャン"],
             ["メニュー","メニュー","メニュー","メニュー","メニュー","メニュー","メニュー"],
             ["メニュー","メニュー","メニュー"],
             ["メニュー","メニュー","メニュー","メニュー","メニュー","メニュー","メニュー","メニュー"],
@@ -125,15 +149,28 @@ class Pentest(Widget):
             item = AccordionItem(title=titles[x],background_normal=menuImages[x])
             layout = BoxLayout(orientation='vertical')
             for i in range(len(menuItems[x])):
+                if x == 0:
+                    layout.add_widget(Button(text=menuItems[x][i],
+                        background_color=backColors[x],
+                        on_press=self.menuScan
+                        ))
+                if x == 1:
+                    layout.add_widget(Button(text=menuItems[x][i],
+                        background_color=backColors[x],
+                        ))
+                if x == 2:
+                    layout.add_widget(Button(text=menuItems[x][i],
+                        background_color=backColors[x],
+                        ))
+                if x == 3:
+                    layout.add_widget(Button(text=menuItems[x][i],
+                        background_color=backColors[x],
+                        ))
                 if x == 4:
                     layout.add_widget(Button(text=menuItems[x][i],
                         background_color=backColors[x],
                         on_press=self.changeLoad
                         ))
-                else:
-                    layout.add_widget(Button(text=menuItems[x][i],
-                                        background_color=backColors[x],
-                                        ))
             item.add_widget(layout)
             self.accordion.add_widget(item)
 
@@ -210,11 +247,13 @@ class Pentest(Widget):
             PATTERN =r'[0-9]+(?:\.[0-9]+){3}'
             ipList = re.findall( PATTERN, outs )
             # macアドレス情報抜き出し
-            PATTERN =r'((([0-9a-fA-F]{1,2}:){5})[0-9a-fA-F]{2})'
+            PATTERN =r'((([0-9a-fA-F]{1,2}:){5})[0-9a-fA-F]{1,2})'
             macList = re.findall( PATTERN, outs )
 
             print(ipList)
             print(macList)
+            print(len(ipList))
+            print(len(macList))
 
             # ノード情報の構築
             for i in range(len(ipList)):
@@ -222,6 +261,7 @@ class Pentest(Widget):
                     "id":str(i + 1),
                     "address":ipList[i],
                     "macaddress":macList[i][0],
+                    # "macaddress":"macList[i][0]",
                     "hostname":"不明",
                     "os":"不明",
                     "service":"""不明
@@ -252,11 +292,35 @@ class Pentest(Widget):
             time.sleep(0.3)
             self.cmdText += "."
 
+    #　メニューコマンド実行
+    def exeCmd(self, cmd):
+        self.cmdText += "> " + cmd + "\n"
+        proc= subprocess.run(cmd,shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.cmdOutput = proc.stdout
+        self.cmdText += "\n" + self.cmdOutput + "\n"
+
+    # スキャン分類処理
+    def menuScan(self, btn):
+        if btn.text == "詳細スキャン":
+            cmdThread = threading.Thread(target=self.exeCmd("nmap",))
+            cmdThread.start()
+        if btn.text == "高速スキャン":
+            address = self.nodes[int(self.mainWindow.id)]["address"]
+            self.openPopup(address + "に対し高速スキャンをかけます。よろしいですか？", )
+        if btn.text == "OSスキャン":
+            print(btn.text)
+            print(self.mainWindow.address)
+        if btn.text == "ネットワークスキャン":
+            print(btn.text)
+            print(self.mainWindow.address)
+        else:
+            print(btn.text)
+
     # ロードウィンドウ変更
     def changeLoad(self,btn):
         self.ids["left_box"].ids["load_img"].source = "images/loading/" + btn.text + ".gif"
 
-    # コマンド実行
+    # 入力コマンド実行
     def cmdInput(self):
         cmd = self.ids["right_box"].ids["cmd_input"].text
         res = subprocess.getoutput(cmd)
@@ -272,6 +336,8 @@ class Pentest(Widget):
     # ノードの追加処理
     def addNode(self, nodes):
 
+        print(nodes)
+
         networkIdentifier = self.ids["center_box"].ids["network_window"]
 
         x = int(random.uniform(0,networkIdentifier.width * 0.9))
@@ -280,10 +346,10 @@ class Pentest(Widget):
         # 画像イメージ設定(self→自分自身、def_node→デフォルトノード[危険度：グレー])
         if nodes["type"] == "self":
             image = "images/nood/pc_green.png"
-            downImage = "images/nood/pc_red.png"
+            downImage = "images/nood/pc_green_down.png"
         else:
             image = "images/nood/pc_gray.png"
-            downImage = "images/nood/pc_red.png"
+            downImage = "images/nood/pc_gray_down.png"
 
         layout = ScatterLayout(scale=0.2, x=x + 400, y=y)
         button = ToggleButton(
@@ -310,6 +376,7 @@ class Pentest(Widget):
 
     #  ノード選択時
     def nodeCheck(self, btn):
+        self.mainWindow.id = self.nodes[int(btn.text)]["id"]
         self.mainWindow.address = "IPアドレス：" + self.nodes[int(btn.text)]["address"]
         self.mainWindow.macaddress = "MACアドレス：" + self.nodes[int(btn.text)]["macaddress"]
         self.mainWindow.hostName = "ホストネーム：" + self.nodes[int(btn.text)]["hostname"]
@@ -331,13 +398,25 @@ class Pentest(Widget):
         elif data == 4:
             self.ids["center_box"].ids["main_window"].add_widget(self.vulnWindow)
 
-    # でばっぐよう
-    def hoge(self):
-        for key, val in self.ids.items():
-            print("key={0}, val={1}".format(key, val))
+    # ポップアップ処理
+    def openPopup(self, text):
+        self.popup.message = text
+        self.popup.open()
+        self.popup.bind(
+            on_yes=self._popup_yes,
+            on_no=self._popup_no
+        )
+    def _popup_yes(self,ins):
+        address = self.nodes[int(self.mainWindow.id)]["address"]
+        cmdThread = threading.Thread(target=self.exeCmd("nmap -F " + address + " | grep -e 'tcp' -e 'udp' -e 'PORT'",))
+        cmdThread.start()
+        self.mainWindow.service = "稼働サービス:\n" + self.cmdOutput
+        self.nodes[int(self.mainWindow.id)]["service"] = self.cmdOutput
 
-    def getInfo(self):
-        print(self.info_data.address)
+        self.popup.dismiss()
+    def _popup_no(self,ins):
+        self.popup.dismiss()
+
 
 class PentestApp(App):
     def __init__(self, **kwargs):
