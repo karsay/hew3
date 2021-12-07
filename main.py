@@ -81,6 +81,8 @@ class Pentest(Widget):
 
     popUpMessage = StringProperty()
 
+    popupFlag = ""
+
     nodes = [
         # {
         #     "id":"0",
@@ -301,12 +303,11 @@ class Pentest(Widget):
 
     # スキャン分類処理
     def menuScan(self, btn):
+        address = self.nodes[int(self.mainWindow.id)]["address"]
         if btn.text == "詳細スキャン":
-            cmdThread = threading.Thread(target=self.exeCmd("nmap",))
-            cmdThread.start()
+            self.openPopup(address,"詳細スキャン")
         if btn.text == "高速スキャン":
-            address = self.nodes[int(self.mainWindow.id)]["address"]
-            self.openPopup(address + "に対し高速スキャンをかけます。よろしいですか？", )
+            self.openPopup(address,"高速スキャン")
         if btn.text == "OSスキャン":
             print(btn.text)
             print(self.mainWindow.address)
@@ -381,7 +382,7 @@ class Pentest(Widget):
         self.mainWindow.macaddress = "MACアドレス：" + self.nodes[int(btn.text)]["macaddress"]
         self.mainWindow.hostName = "ホストネーム：" + self.nodes[int(btn.text)]["hostname"]
         self.mainWindow.OS = "OS：" + self.nodes[int(btn.text)]["os"]
-        self.mainWindow.service = "稼働サービス：" + self.nodes[int(btn.text)]["service"]
+        self.mainWindow.service = "稼働サービス：\n" + self.nodes[int(btn.text)]["service"]
 
     # メインウィンドウメニュー選択時
     def changeMainWindow(self,data):
@@ -399,19 +400,28 @@ class Pentest(Widget):
             self.ids["center_box"].ids["main_window"].add_widget(self.vulnWindow)
 
     # ポップアップ処理
-    def openPopup(self, text):
-        self.popup.message = text
+    def openPopup(self, address, flag):
+        self.popupFlag = flag
+        self.popup.message = address + "に対し" + flag + "をかけます、よろしいですか？"
         self.popup.open()
         self.popup.bind(
             on_yes=self._popup_yes,
             on_no=self._popup_no
         )
+
     def _popup_yes(self,ins):
-        address = self.nodes[int(self.mainWindow.id)]["address"]
-        cmdThread = threading.Thread(target=self.exeCmd("nmap -F " + address + " | grep -e 'tcp' -e 'udp' -e 'PORT'",))
-        cmdThread.start()
-        self.mainWindow.service = "稼働サービス:\n" + self.cmdOutput
-        self.nodes[int(self.mainWindow.id)]["service"] = self.cmdOutput
+        if self.popupFlag == "高速スキャン":
+            address = self.nodes[int(self.mainWindow.id)]["address"]
+            cmdThread = threading.Thread(target=self.exeCmd("nmap -F -sV " + address + " | grep -e 'tcp' -e 'udp' -e 'PORT'",))
+            cmdThread.start()
+            self.mainWindow.service = "稼働サービス:\n" + self.cmdOutput
+            self.nodes[int(self.mainWindow.id)]["service"] = self.cmdOutput
+        elif self.popupFlag == "詳細スキャン":
+            address = self.nodes[int(self.mainWindow.id)]["address"]
+            cmdThread = threading.Thread(target=self.exeCmd("nmap -sV " + address + " | grep -e 'tcp' -e 'udp' -e 'PORT'",))
+            cmdThread.start()
+            self.mainWindow.service = "稼働サービス:\n" + self.cmdOutput
+            self.nodes[int(self.mainWindow.id)]["service"] = self.cmdOutput
 
         self.popup.dismiss()
     def _popup_no(self,ins):
