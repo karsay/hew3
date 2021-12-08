@@ -402,7 +402,7 @@ class Pentest(Widget):
     # ポップアップ処理
     def openPopup(self, address, flag):
         self.popupFlag = flag
-        self.popup.message = address + "に対し" + flag + "をかけます、よろしいですか？"
+        self.popup.message = address + "に対し" + flag + "をかけます よろしいですか？"
         self.popup.open()
         self.popup.bind(
             on_yes=self._popup_yes,
