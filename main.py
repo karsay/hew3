@@ -16,6 +16,7 @@ from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.accordion import Accordion, AccordionItem
 from kivy.clock import Clock
 from kivy.properties import NumericProperty
+from kivy.utils import get_color_from_hex
 
 from kivy.properties import StringProperty, ListProperty
 from kivy.event import EventDispatcher
@@ -29,6 +30,10 @@ from kivy.factory import Factory
 from kivy.lang import Builder
 from kivy.uix.screenmanager import ScreenManager, Screen
 
+# kivyMD
+from kivy.metrics import dp
+from kivymd.app import MDApp
+from kivymd.uix.datatables import MDDataTable
 import japanize_kivy
 import subprocess
 import random
@@ -43,6 +48,23 @@ Builder.load_file('NetworkWindow.kv')
 Builder.load_file('VulnerabilityWindow.kv')
 Builder.load_file('WebWindow.kv')
 Builder.load_file('MyPopup.kv')
+
+Builder.load_string("""
+<-MDDataTable>:
+    background_color: 0, 0, 0, 1  # added for this example
+    MDCard:
+        id: container
+        orientation: "vertical"
+        elevation: root.elevation
+        # canvas added for this change
+        canvas:
+            Color:
+                rgba: root.background_color
+            Rectangle:
+                size: self.size
+                pos: self.pos
+""")
+
 
 class MainWindow(EventDispatcher):
     id = NumericProperty()
@@ -96,6 +118,7 @@ class Pentest(Widget):
         #     "type":""
         # },
     ]
+
 
     def __init__(self, **kwargs):
         super(Pentest, self).__init__(**kwargs)
@@ -177,6 +200,74 @@ class Pentest(Widget):
             self.accordion.add_widget(item)
 
         self.ids["left_box"].ids["menu"].add_widget(self.accordion)
+
+        # ネットワークウィンドウの初期化
+        self.data_tables = MDDataTable(
+            column_data=[
+                ("[color=#ffffff]No.[/color]", dp(30)),
+                ("[color=#ffffff]状態[/color]", dp(30)),
+                ("[color=#ffffff]IPアドレス[/color]", dp(30)),
+                ("[color=#ffffff]MACアドレス[/color]", dp(30)),
+                ("[color=#ffffff]ホストネーム[/color]", dp(30)),
+                ("[color=#ffffff]OS[/color]", dp(30)),
+                ("[color=#ffffff]稼働サービス[/color]", dp(30)),
+            ],
+            row_data=[
+                (
+                    "[color=#ffffff]1[/color]",
+                    ("alert", [255 / 256, 165 / 256, 0, 1], "[color=#ffffff]警告[/color]"),
+                    "[color=#ffffff]192.168.1.1[/color]",
+                    "[color=#ffffff]1c:2c:3c:4c:5c:6c[/color]",
+                    "[color=#ffffff]hoge-pc[/color]",
+                    "[color=#ffffff]windows[/color]",
+                    "[color=#ffffff]sql, http[/color]",
+                ),
+                (
+                    "[color=#ffffff]2[/color]",
+                    ("alert-circle", [1, 0, 0, 1], "[color=#ffffff]危険[/color]"),
+                    "[color=#ffffff]192.168.1.1[/color]",
+                    "[color=#ffffff]1c:2c:3c:4c:5c:6c[/color]",
+                    "[color=#ffffff]hoge-pc[/color]",
+                    "[color=#ffffff]windows[/color]",
+                    "[color=#ffffff]sql, http[/color]",
+                ),
+                (
+                    "[color=#ffffff]3[/color]",
+                    ("checkbox-marked-circle",[39 / 256, 174 / 256, 96 / 256, 1],"[color=#ffffff]正常[/color]"),
+                    "[color=#ffffff]192.168.1.1[/color]",
+                    "[color=#ffffff]1c:2c:3c:4c:5c:6c[/color]",
+                    "[color=#ffffff]hoge-pc[/color]",
+                    "[color=#ffffff]windows[/color]",
+                    "[color=#ffffff]sql, http[/color]",
+                ),
+                (
+                    "[color=#ffffff]4[/color]",
+                    ("checkbox-marked-circle",[39 / 256, 174 / 256, 96 / 256, 1], "[color=#ffffff]正常[/color]"),
+                    "[color=#ffffff]192.168.1.1[/color]",
+                    "[color=#ffffff]1c:2c:3c:4c:5c:6c[/color]",
+                    "[color=#ffffff]hoge-pc[/color]",
+                    "[color=#ffffff]windows[/color]",
+                    "[color=#ffffff]sql, http[/color]",
+                ),
+                (
+                    "[color=#ffffff]5[/color]",
+                    ("checkbox-marked-circle",[39 / 256, 174 / 256, 96 / 256, 1],"[color=#ffffff]正常[/color]"),
+                    "[color=#ffffff]192.168.1.1[/color]",
+                    "[color=#ffffff]1c:2c:3c:4c:5c:6c[/color]",
+                    "[color=#ffffff]hoge-pc[/color]",
+                    "[color=#ffffff]windows[/color]",
+                    "[color=#ffffff]sql, http[/color]",
+                ),
+            ],
+            background_color_header=get_color_from_hex("#000000"),
+            background_color_cell=get_color_from_hex("#000000"),
+            background_color_selected_cell=get_color_from_hex("#111111"),
+            # sorted_on="Schedule",
+            # sorted_order="ASC",
+            # elevation=2,
+        )
+        networkWindow = self.ids["center_box"].ids["network_window"]
+        networkWindow.add_widget(self.data_tables)
 
         # セットアップ
         self.cmdText += "\n====================================\n"
@@ -297,9 +388,15 @@ class Pentest(Widget):
     #　メニューコマンド実行
     def exeCmd(self, cmd):
         self.cmdText += "> " + cmd + "\n"
-        proc= subprocess.run(cmd,shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        self.cmdOutput = proc.stdout
-        self.cmdText += "\n" + self.cmdOutput + "\n"
+        proc= subprocess.Popen(cmd,shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            outs, errs = proc.communicate(timeout=60)
+            self.cmdOutput = outs
+            self.cmdText += "\n" + self.cmdOutput + "\n"
+        except subprocess.SubprocessError:
+            proc.kill()
+            self.cmdText += "\n" + "コマンド実行エラー" + "\n"
+            return
 
     # スキャン分類処理
     def menuScan(self, btn):
@@ -337,43 +434,41 @@ class Pentest(Widget):
     # ノードの追加処理
     def addNode(self, nodes):
 
-        print(nodes)
+        networkWindow = self.ids["center_box"].ids["network_window"]
 
-        networkIdentifier = self.ids["center_box"].ids["network_window"]
+        # x = int(random.uniform(0,networkIdentifier.width * 0.9))
+        # y = int(random.uniform(0,networkIdentifier.height * 0.8))
 
-        x = int(random.uniform(0,networkIdentifier.width * 0.9))
-        y = int(random.uniform(0,networkIdentifier.height * 0.8))
+        # # 画像イメージ設定(self→自分自身、def_node→デフォルトノード[危険度：グレー])
+        # if nodes["type"] == "self":
+        #     image = "images/nood/pc_green.png"
+        #     downImage = "images/nood/pc_green_down.png"
+        # else:
+        #     image = "images/nood/pc_gray.png"
+        #     downImage = "images/nood/pc_gray_down.png"
 
-        # 画像イメージ設定(self→自分自身、def_node→デフォルトノード[危険度：グレー])
-        if nodes["type"] == "self":
-            image = "images/nood/pc_green.png"
-            downImage = "images/nood/pc_green_down.png"
-        else:
-            image = "images/nood/pc_gray.png"
-            downImage = "images/nood/pc_gray_down.png"
-
-        layout = ScatterLayout(scale=0.2, x=x + 400, y=y)
-        button = ToggleButton(
-            size_hint_y=0.8,
-            group="noods",
-            text=nodes["id"],
-            font_size="0",
-            on_release=self.nodeCheck,size_hint=(0.4, 0.7),
-            pos_hint={"center_x": 0.5, "center_y": 0.5},
-            background_normal=image,
-            background_down=downImage,
-            )
-        label = Label(
-            size_hint_y=0.2,
-            text=nodes["address"],
-            font_size="150",
-            halign="left"
-        )
-        boxLayout = BoxLayout(orientation="vertical")
-        boxLayout.add_widget(button)
-        boxLayout.add_widget(label)
-        layout.add_widget(boxLayout)
-        networkIdentifier.add_widget(layout)
+        # layout = ScatterLayout(scale=0.2, x=x + 400, y=y)
+        # button = ToggleButton(
+        #     size_hint_y=0.8,
+        #     group="noods",
+        #     text=nodes["id"],
+        #     font_size="0",
+        #     on_release=self.nodeCheck,size_hint=(0.4, 0.7),
+        #     pos_hint={"center_x": 0.5, "center_y": 0.5},
+        #     background_normal=image,
+        #     background_down=downImage,
+        #     )
+        # label = Label(
+        #     size_hint_y=0.2,
+        #     text=nodes["address"],
+        #     font_size="150",
+        #     halign="left"
+        # )
+        # boxLayout = BoxLayout(orientation="vertical")
+        # boxLayout.add_widget(button)
+        # boxLayout.add_widget(label)
+        # layout.add_widget(boxLayout)
+        # networkIdentifier.add_widget(layout)
 
     #  ノード選択時
     def nodeCheck(self, btn):
@@ -428,7 +523,8 @@ class Pentest(Widget):
         self.popup.dismiss()
 
 
-class PentestApp(App):
+class PentestApp(MDApp):
+# class PentestApp(App):
     def __init__(self, **kwargs):
         super(PentestApp, self).__init__(**kwargs)
         self.title = 'Pentest'
